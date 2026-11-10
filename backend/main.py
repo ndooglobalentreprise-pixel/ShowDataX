@@ -1,10 +1,11 @@
+import os
 import sqlite3
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="VortexIoT API", version="1.0")
+app = FastAPI(title="ShowDataX API", version="1.0")
 
-# Configuration CORS pour autoriser le frontend à communiquer avec l'API
+# Configuration CORS pour autoriser le frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,33 +14,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_NAME = "database/vortex.db"
+# Chemin absolu dynamique vers la base de données
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "..", "database", "ShowDataX.db")
+
+def get_db_connection():
+  """Ouvre une connexion propre à la base de données SQLite"""
+  conn = sqlite3.connect(DB_PATH)
+  conn.row_factory = sqlite3.Row
+  return conn
+
 
 @app.get("/")
 def read_root():
-    return {"message": "Bienvenue sur l'API VortexIoT ! Système opérationnel."}
+  return {"message": "Bienvenue sur l'API ShowDataX ! Système opérationnel."}
+
 
 @app.get("/measurements")
 def get_measurements(limit: int = 50):
-    """Récupère les dernières mesures météo enregistrées"""
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            SELECT id, station_id, temperature, humidity, pressure, timestamp 
+  """Récupère les dernières mesures météo et niveau d'eau enregistrées"""
+  conn = None
+  try:
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Inclusion du champ water_level nécessaire à la station
+    cursor.execute(
+        """
+            SELECT id, station_id, temperature, humidity, pressure, water_level, timestamp 
             FROM measurements 
             ORDER BY id DESC 
             LIMIT ?
-        ''', (limit,))
-        
-        rows = cursor.fetchall()
-        conn.close()
-        
-        results = [dict(row) for row in rows]
-        # On inverse pour afficher du plus ancien au plus récent sur le graphique
-        return {"total": len(results), "data": list(reversed(results))}
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        """,
+        (limit,),
+    )
+
+    rows = cursor.fetchall()
+    results = [dict(row) for row in rows]
+
+    # Inversion pour l'affichage chronologique (du plus ancien au plus récent)
+    return {"total": len(results), "data": list(reversed(results))}
+
+  except sqlite3.Error as e:
+    raise HTTPException(
+        status_code=500, detail=f"Erreur de base de données: {str(e)}"
+    )
+  except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
+  finally:
+    if conn:
+      conn.close()
