@@ -11,7 +11,7 @@ def init_db():
     cursor = conn.cursor()
     
     # Création de la table des mesures météo et niveau d'eau
-    cursor.execute('''
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS measurements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             station_id TEXT NOT NULL,
@@ -21,7 +21,7 @@ def init_db():
             water_level REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    '')
+    """)
     
     conn.commit()
     conn.close()
