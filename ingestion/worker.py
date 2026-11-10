@@ -1,29 +1,33 @@
 import json
+import os
 import sqlite3
 import paho.mqtt.client as mqtt
 
-# Configuration de la base de données
-DB_NAME = "database/vortex.db"
+# Chemin absolu dynamique vers la base de données ShowDataX.db
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "..", "database", "ShowDataX.db")
 
 # Configuration MQTT
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
-MQTT_TOPIC = "vortex/meteo/data"
+MQTT_TOPIC = "showdatax/meteo/data"  # Topic aligné sur le nom du projet
 
 def save_to_db(data):
     """Enregistre les données reçues dans SQLite"""
     try:
-        conn = sqlite3.connect(DB_NAME)
+        conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
         
+        # Insertion incluant water_level pour le HC-SR04
         cursor.execute('''
-            INSERT INTO measurements (station_id, temperature, humidity, pressure)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO measurements (station_id, temperature, humidity, pressure, water_level)
+            VALUES (?, ?, ?, ?, ?)
         ''', (
             data.get("station_id", "unknown"),
             data.get("temperature"),
             data.get("humidity"),
-            data.get("pressure")
+            data.get("pressure"),
+            data.get("water_level")
         ))
         
         conn.commit()
